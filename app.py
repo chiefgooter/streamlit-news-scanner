@@ -9,6 +9,11 @@ FEEDS = [
     'https://rss.cnn.com/rss/money_latest.rss',
     'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
     'https://www.reuters.com/arc/outboundfeeds/newsroom/all/?outputType=xml',
+    # --- NEW FEEDS ADDED BELOW ---
+    'https://finance.yahoo.com/news/rss',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml',
+    'https://feeds.feedburner.com/venturebeat/feed',
+    'https://www.forbes.com/business/feed/',
 ]
 
 # Function to fetch and parse a single RSS feed (includes User-Agent fix)
