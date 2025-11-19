@@ -91,23 +91,25 @@ try:
             # If no search term, show all articles
             filtered_articles = all_articles
         
-        # --- DISPLAY FILTERED ARTICLES ---
+     # --- DISPLAY FILTERED ARTICLES ---
         # Display up to 1000 articles after filtering
         for article in filtered_articles[:1000]: 
-            st.markdown("---")
-            
-            # Format title as a clickable link
-            st.markdown(
-                f"### [{article['title']}]({article['url']})"
-            )
-            
-            # Display publisher and time
-            st.markdown(
-                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
-            )
-            
-            # Display description
-            st.write(article['description'][:300] + '...') 
+            # Use st.container() for a clean visual block per article
+            with st.container(border=True): 
+                # 1. Headline as a large, clickable link
+                st.markdown(f"### [{article['title']}]({article['url']})") 
+                
+                # 2. Source and Date on a single line with a divider
+                st.caption(
+                    f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
+                )
+                
+                # 3. Use an Expander to hide the description until clicked
+                with st.expander("Click here to read summary..."):
+                    st.write(article['description'])
+                    st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
+                
+        st.divider() # A clean line to separate the article list from the footer
 
 except Exception as e:
     st.error(f"A critical error occurred while fetching news. Details: {e}")
