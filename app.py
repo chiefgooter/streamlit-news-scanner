@@ -1,6 +1,6 @@
 import streamlit as st
 import feedparser
-from datetime import datetime
+from datetime import datetime, timezone # <-- NEW IMPORT
 from concurrent.futures import ThreadPoolExecutor
 
 # --- Configuration ---
@@ -9,7 +9,7 @@ FEEDS = [
     'https://rss.cnn.com/rss/money_latest.rss',
     'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
     'https://www.reuters.com/arc/outboundfeeds/newsroom/all/?outputType=xml',
-    # --- NEW FEEDS ADDED BELOW ---
+    # New feeds previously discussed
     'https://finance.yahoo.com/news/rss',
     'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml',
     'https://feeds.feedburner.com/venturebeat/feed',
@@ -40,15 +40,15 @@ def get_all_news():
     
     for feed in results:
         publisher_name = feed.feed.get('title', 'Unknown Source')
-        # *** CHANGE 1: INCREASED PER-SOURCE FETCH LIMIT ***
-        # Set to 300 to ensure enough articles are pulled to hit the 1000 total limit
+        # Increased per-source fetch limit
         for entry in feed.entries[:300]: 
             try:
                 # Safely parse the published date
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
             except:
-                published_time = datetime.now()
-
+                # --- CORRECTED FIX: Create an offset-aware datetime for comparison ---
+                published_time = datetime.now(timezone.utc) # <-- CORRECTED
+                
             articles.append({
                 'title': entry.title,
                 'url': entry.link,
@@ -92,7 +92,7 @@ try:
             filtered_articles = all_articles
         
         # --- DISPLAY FILTERED ARTICLES ---
-        # *** CHANGE 2: INCREASED TOTAL DISPLAY LIMIT TO 1000 ***
+        # Display up to 1000 articles after filtering
         for article in filtered_articles[:1000]: 
             st.markdown("---")
             
@@ -103,7 +103,7 @@ try:
             
             # Display publisher and time
             st.markdown(
-                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S')}*"
+                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
             )
             
             # Display description
