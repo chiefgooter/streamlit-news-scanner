@@ -1,6 +1,6 @@
 import streamlit as st
 import feedparser
-from datetime import datetime, timezone # <-- NEW IMPORT
+from datetime import datetime, timezone 
 from concurrent.futures import ThreadPoolExecutor
 
 # --- Configuration ---
@@ -9,7 +9,6 @@ FEEDS = [
     'https://rss.cnn.com/rss/money_latest.rss',
     'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
     'https://www.reuters.com/arc/outboundfeeds/newsroom/all/?outputType=xml',
-    # New feeds previously discussed
     'https://finance.yahoo.com/news/rss',
     'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml',
     'https://feeds.feedburner.com/venturebeat/feed',
@@ -18,7 +17,6 @@ FEEDS = [
 
 # Function to fetch and parse a single RSS feed (includes User-Agent fix)
 def fetch_feed(url):
-    # Using HTTP headers to mimic a browser, similar to the User-Agent fix
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -27,27 +25,24 @@ def fetch_feed(url):
 # --- Streamlit App Layout ---
 
 st.set_page_config(layout="wide")
-st.title("📰 Real-Time Financial News Scanner (Streamlit)")
+st.title("💰 Real-Time Financial News Scanner 🚀") 
 
 # Cache the results for 10 minutes (600 seconds) to speed up user interactions
 @st.cache_data(ttl=600) 
 def get_all_news():
     articles = []
     
-    # Use ThreadPoolExecutor for concurrent fetching (like Promise.all in JavaScript)
     with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(fetch_feed, FEEDS))
     
     for feed in results:
         publisher_name = feed.feed.get('title', 'Unknown Source')
-        # Increased per-source fetch limit
         for entry in feed.entries[:300]: 
             try:
-                # Safely parse the published date
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
             except:
-                # --- CORRECTED FIX: Create an offset-aware datetime for comparison ---
-                published_time = datetime.now(timezone.utc) # <-- CORRECTED
+                # Corrected: Create an offset-aware datetime for comparison
+                published_time = datetime.now(timezone.utc)
                 
             articles.append({
                 'title': entry.title,
@@ -57,7 +52,6 @@ def get_all_news():
                 'description': getattr(entry, 'summary', entry.get('content', [{}])[0].get('value', 'No description available'))
             })
 
-    # Sort articles by time (most recent first)
     return sorted(articles, key=lambda x: x['published_utc'], reverse=True)
 
 try:
@@ -66,33 +60,35 @@ try:
     if not all_articles:
         st.error("Error: Could not load news from any sources. The feeds might be blocking the server.")
     else:
-        st.subheader(f"Total Articles Found: {len(all_articles)}")
-
-        # --- SEARCH WIDGET ---
-        search_term = st.text_input(
-            "Filter Articles:",
-            placeholder="Search headlines (e.g., Tesla, AI, Earnings)",
-            help="Type a keyword to filter the articles."
-        )
-
+        # --- SIDEBAR CONTROLS ---
+        with st.sidebar:
+            st.title("⚙️ Scanner Controls")
+            
+            # 1. Search Widget 
+            search_term = st.text_input(
+                "Filter Articles:",
+                placeholder="Search headlines (e.g., Tesla, AI, Earnings)",
+                help="Type a keyword to filter the articles."
+            )
+            
+            # 2. Article Count 
+            st.info(f"Total Articles Found: **{len(all_articles)}**")
+        
         # --- FILTERING LOGIC ---
         if search_term:
-            # Convert search term to lowercase for case-insensitive matching
             search_term_lower = search_term.lower()
             
-            # Filter articles based on the search term in the title or publisher name
             filtered_articles = [
                 article for article in all_articles 
                 if search_term_lower in article['title'].lower() or \
                    search_term_lower in article['publisher'].lower()
             ]
-            st.info(f"Showing {len(filtered_articles)} results for: **{search_term}**")
+            # Display results count in the main area
+            st.info(f"Showing **{len(filtered_articles)}** results for: **{search_term}**")
         else:
-            # If no search term, show all articles
             filtered_articles = all_articles
         
-     # --- DISPLAY FILTERED ARTICLES ---
-        # Display up to 1000 articles after filtering
+        # --- DISPLAY FILTERED ARTICLES (with Expander and Container Layout) ---
         for article in filtered_articles[:1000]: 
             # Use st.container() for a clean visual block per article
             with st.container(border=True): 
@@ -109,7 +105,7 @@ try:
                     st.write(article['description'])
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
                 
-        st.divider() # A clean line to separate the article list from the footer
+        st.divider()
 
 except Exception as e:
     st.error(f"A critical error occurred while fetching news. Details: {e}")
