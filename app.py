@@ -24,11 +24,12 @@ def fetch_feed(url):
 st.set_page_config(layout="wide")
 st.title("📰 Real-Time Financial News Scanner (Streamlit)")
 
-@st.cache_data(ttl=600) # Cache the results for 10 minutes (600 seconds)
+# Cache the results for 10 minutes (600 seconds) to speed up user interactions
+@st.cache_data(ttl=600) 
 def get_all_news():
     articles = []
     
-    # Use ThreadPoolExecutor for concurrent fetching (like Promise.all)
+    # Use ThreadPoolExecutor for concurrent fetching (like Promise.all in JavaScript)
     with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(fetch_feed, FEEDS))
     
@@ -60,14 +61,14 @@ try:
     else:
         st.subheader(f"Total Articles Found: {len(all_articles)}")
 
-        # --- NEW: SEARCH WIDGET ---
+        # --- SEARCH WIDGET ---
         search_term = st.text_input(
             "Filter Articles:",
             placeholder="Search headlines (e.g., Tesla, AI, Earnings)",
             help="Type a keyword to filter the articles."
         )
 
-        # --- NEW: FILTERING LOGIC ---
+        # --- FILTERING LOGIC ---
         if search_term:
             # Convert search term to lowercase for case-insensitive matching
             search_term_lower = search_term.lower()
@@ -83,9 +84,23 @@ try:
             # If no search term, show all articles
             filtered_articles = all_articles
         
-        # --- DISPLAY FILTERED ARTICLES (Now using filtered_articles) ---
+        # --- DISPLAY FILTERED ARTICLES ---
         # Display top 100 articles after filtering
         for article in filtered_articles[:100]: 
             st.markdown("---")
             
-            #
+            # Format title as a clickable link
+            st.markdown(
+                f"### [{article['title']}]({article['url']})"
+            )
+            
+            # Display publisher and time
+            st.markdown(
+                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S')}*"
+            )
+            
+            # Display description
+            st.write(article['description'][:300] + '...') 
+
+except Exception as e:
+    st.error(f"A critical error occurred while fetching news. Details: {e}")
