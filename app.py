@@ -35,7 +35,9 @@ def get_all_news():
     
     for feed in results:
         publisher_name = feed.feed.get('title', 'Unknown Source')
-        for entry in feed.entries[:30]: # Limit to 30 articles per source
+        # *** CHANGE 1: INCREASED PER-SOURCE FETCH LIMIT ***
+        # Set to 300 to ensure enough articles are pulled to hit the 1000 total limit
+        for entry in feed.entries[:300]: 
             try:
                 # Safely parse the published date
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
@@ -85,8 +87,8 @@ try:
             filtered_articles = all_articles
         
         # --- DISPLAY FILTERED ARTICLES ---
-        # Display top 100 articles after filtering
-        for article in filtered_articles[:100]: 
+        # *** CHANGE 2: INCREASED TOTAL DISPLAY LIMIT TO 1000 ***
+        for article in filtered_articles[:1000]: 
             st.markdown("---")
             
             # Format title as a clickable link
