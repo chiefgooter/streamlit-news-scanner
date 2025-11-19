@@ -59,23 +59,33 @@ try:
         st.error("Error: Could not load news from any sources. The feeds might be blocking the server.")
     else:
         st.subheader(f"Total Articles Found: {len(all_articles)}")
+
+        # --- NEW: SEARCH WIDGET ---
+        search_term = st.text_input(
+            "Filter Articles:",
+            placeholder="Search headlines (e.g., Tesla, AI, Earnings)",
+            help="Type a keyword to filter the articles."
+        )
+
+        # --- NEW: FILTERING LOGIC ---
+        if search_term:
+            # Convert search term to lowercase for case-insensitive matching
+            search_term_lower = search_term.lower()
+            
+            # Filter articles based on the search term in the title or publisher name
+            filtered_articles = [
+                article for article in all_articles 
+                if search_term_lower in article['title'].lower() or \
+                   search_term_lower in article['publisher'].lower()
+            ]
+            st.info(f"Showing {len(filtered_articles)} results for: **{search_term}**")
+        else:
+            # If no search term, show all articles
+            filtered_articles = all_articles
         
-        # Display articles
-        for article in all_articles[:100]: # Display top 100 articles
+        # --- DISPLAY FILTERED ARTICLES (Now using filtered_articles) ---
+        # Display top 100 articles after filtering
+        for article in filtered_articles[:100]: 
             st.markdown("---")
             
-            # Format title as a clickable link
-            st.markdown(
-                f"### [{article['title']}]({article['url']})"
-            )
-            
-            # Display publisher and time
-            st.markdown(
-                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S')}*"
-            )
-            
-            # Display description
-            st.write(article['description'][:300] + '...') # Truncate description for cleaner view
-
-except Exception as e:
-    st.error(f"A critical error occurred while fetching news. Details: {e}")
+            #
