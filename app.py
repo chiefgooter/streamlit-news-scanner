@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 
 # --- Configuration ---
+# Static feeds that are always fetched (removed the individual stock feeds as they are now dynamic)
 FEEDS = [
     'https://feeds.feedburner.com/Techcrunch',
     'https://rss.cnn.com/rss/money_latest.rss',
@@ -31,21 +32,24 @@ def fetch_feed(url):
 st.set_page_config(layout="wide")
 st.title("💰 Real-Time Financial News Scanner 🚀") 
 
-# Cache the results for 10 minutes (600 seconds) to speed up user interactions
+# Cache the results for 10 minutes (600 seconds). 
+# The cache key now depends on the 'feed_list' argument.
 @st.cache_data(ttl=600) 
-def get_all_news():
+def get_all_news(feed_list):
     articles = []
     
+    # Use ThreadPoolExecutor to fetch all feeds concurrently
     with ThreadPoolExecutor(max_workers=5) as executor:
-        results = list(executor.map(fetch_feed, FEEDS))
+        results = list(executor.map(fetch_feed, feed_list))
     
     for feed in results:
         publisher_name = feed.feed.get('title', 'Unknown Source')
         for entry in feed.entries[:300]: 
             try:
+                # Attempt to parse publication date
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
             except:
-                # Corrected: Create an offset-aware datetime for comparison
+                # Fallback to current time in UTC if parsing fails
                 published_time = datetime.now(timezone.utc)
                 
             articles.append({
@@ -59,57 +63,81 @@ def get_all_news():
     return sorted(articles, key=lambda x: x['published_utc'], reverse=True)
 
 try:
-    all_articles = get_all_news()
+    # --- SIDEBAR CONTROLS ---
+    with st.sidebar:
+        st.title("⚙️ Scanner Controls")
+        
+        st.markdown("---")
+        # 1. NEW: Stock Ticker Search (This input drives the fetching logic)
+        ticker_search = st.text_input(
+            "Search by Stock Ticker (e.g., AAPL)",
+            placeholder="Enter Ticker Symbol",
+            max_chars=5,
+            help="Enter a ticker (e.g., TSLA) to fetch the latest news specifically about that company.",
+            key="ticker_input"
+        ).strip().upper() # Clean and capitalize the input
 
-    if not all_articles:
-        st.error("Error: Could not load news from any sources. The feeds might be blocking the server.")
+        # 2. Dynamic Feed Construction
+        dynamic_feeds = []
+        if ticker_search:
+            # Generate the custom Google News RSS link for the ticker
+            ticker_url = f'https://news.google.com/rss/search?q={ticker_search}&hl=en-US&gl=US&ceid=US:en'
+            dynamic_feeds.append(ticker_url)
+            st.success(f"Fetching news for **{ticker_search}**...")
+
+        # Combine static feeds and dynamic feeds
+        full_feed_list = FEEDS + dynamic_feeds
+        
+        # 3. FETCH DATA (Call the cached function with the dynamic feed list)
+        all_articles = get_all_news(full_feed_list)
+
+        # 4. Article Count 
+        st.info(f"Total Articles Found: **{len(all_articles)}**")
+
+        st.markdown("---")
+        
+        # 5. General Filter Widget (This filters the articles that were already loaded)
+        search_term = st.text_input(
+            "Filter Loaded Articles:",
+            placeholder="Filter by keyword (e.g., AI, Earnings)",
+            help="Type a keyword to filter the articles that are already loaded in the list above."
+        )
+
+    # --- FILTERING LOGIC ---
+    if search_term:
+        search_term_lower = search_term.lower()
+        
+        filtered_articles = [
+            article for article in all_articles 
+            if search_term_lower in article['title'].lower() or \
+               search_term_lower in article['publisher'].lower()
+        ]
+        # Display results count in the main area
+        st.info(f"Showing **{len(filtered_articles)}** results for: **{search_term}**")
     else:
-        # --- SIDEBAR CONTROLS ---
-        with st.sidebar:
-            st.title("⚙️ Scanner Controls")
+        filtered_articles = all_articles
+        st.write("Displaying all latest articles.")
+    
+    # --- DISPLAY FILTERED ARTICLES ---
+    for article in filtered_articles[:1000]: 
+        with st.container(border=True): 
+            # 1. Headline as a large, clickable link
+            st.markdown(f"### [{article['title']}]({article['url']})") 
             
-            # 1. Search Widget 
-            search_term = st.text_input(
-                "Filter Articles:",
-                placeholder="Search headlines (e.g., Tesla, AI, Earnings)",
-                help="Type a keyword to filter the articles."
+            # 2. Source and Date on a single line with a divider
+            st.caption(
+                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
             )
             
-            # 2. Article Count 
-            st.info(f"Total Articles Found: **{len(all_articles)}**")
-        
-        # --- FILTERING LOGIC ---
-        if search_term:
-            search_term_lower = search_term.lower()
+            # 3. Use an Expander to hide the description until clicked
+            with st.expander("Click here to read summary..."):
+                st.write(article['description'])
+                st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
             
-            filtered_articles = [
-                article for article in all_articles 
-                if search_term_lower in article['title'].lower() or \
-                   search_term_lower in article['publisher'].lower()
-            ]
-            # Display results count in the main area
-            st.info(f"Showing **{len(filtered_articles)}** results for: **{search_term}**")
-        else:
-            filtered_articles = all_articles
-        
-        # --- DISPLAY FILTERED ARTICLES (with Expander and Container Layout) ---
-        for article in filtered_articles[:1000]: 
-            # Use st.container() for a clean visual block per article
-            with st.container(border=True): 
-                # 1. Headline as a large, clickable link
-                st.markdown(f"### [{article['title']}]({article['url']})") 
-                
-                # 2. Source and Date on a single line with a divider
-                st.caption(
-                    f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
-                )
-                
-                # 3. Use an Expander to hide the description until clicked
-                with st.expander("Click here to read summary..."):
-                    st.write(article['description'])
-                    st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
-                
-        st.divider()
+    st.divider()
 
 except Exception as e:
-    st.error(f"A critical error occurred while fetching news. Details: {e}")
+    # A generic, user-friendly error message is displayed in the app
+    st.error(f"A critical error occurred while fetching news. Please check the logs for details.")
+    # Log the full error to the console for debugging
+    print(f"ERROR: {e}")
