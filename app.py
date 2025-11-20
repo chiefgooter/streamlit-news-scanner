@@ -91,25 +91,29 @@ html, body, [class*="st-"] {
     margin-bottom: 0.5rem; /* Reduced margin */
 }
 
-/* FIX 1: HIDES THE TOP-LEFT SIDEBAR TOGGLE TEXT (Most Aggressive Attempt) */
+/* FIX 1: HIDES THE TOP-LEFT SIDEBAR TOGGLE TEXT */
 button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [data-testid="stSidebarContent"] ~ button { 
     display: none !important;
     visibility: hidden !important;
 }
 
-/* FIX 2: HIDES THE FAILING ICON INSIDE THE ARTICLE EXPANDER */
-/* Target the div that contains the expander icon and hide its content/itself */
-/* Added a more specific class for Streamlit's expander icon */
-.st-emotion-cache-s1h5b3.e1m3uiq2, /* The arrow icon itself */
-[data-testid="stExpanderToggleIcon"] span { /* The span that might hold the text */
+/* --- CRITICAL FIX 2: HIDES THE FAILING ICON/TEXT INSIDE THE ARTICLE EXPANDER --- */
+
+/* Hides the Streamlit icon element itself */
+[data-testid="stExpanderToggleIcon"] {
     display: none !important;
-    visibility: hidden !important;
 }
 
-/* Make the expander text slightly larger and more clickable */
-.st-emotion-cache-p2w2yq { /* This is the general class for expander title */
-    font-size: 1.1em; 
-    font-weight: bold;
+/* Hides the *underlying text* that is causing the overlap/visibility issue */
+/* This targets the span that holds the internal icon name (like 'keyboard_arrow_right') */
+button[data-testid="stExpander"] > div > div > span:first-child { 
+    display: none !important;
+}
+
+/* Ensures the text part of the expander is visible and styled correctly */
+[data-testid="stExpander"] > div > div > button > div:nth-child(2) {
+    font-size: 1.1em !important; 
+    font-weight: bold !important;
 }
 
 </style>
