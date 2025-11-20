@@ -22,6 +22,13 @@ FEEDS = [
     'https://www.reuters.com/arc/outboundfeeds/tag/finance/?outputType=xml',
 ]
 
+# Function to fetch and parse a single RSS feed (includes User-Agent fix)
+def fetch_feed(url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    return feedparser.parse(url, request_headers=headers)
+
 # --- Sentiment Analysis & Utility Functions ---
 
 # Helper function to remove HTML tags and unescape entities for clean text
@@ -116,12 +123,24 @@ def get_all_news(feed_list):
         for entry in feed.entries[:300]: 
             raw_description = getattr(entry, 'summary', entry.get('content', [{}])[0].get('value', 'No description available'))
             
+            published_time = datetime.now(timezone.utc) # Default to aware fallback
+
             try:
-                # Attempt to parse publication date
+                # 1. Attempt the standard robust parse with timezone (%z)
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
             except:
-                # Fallback to current time in UTC if parsing fails
-                published_time = datetime.now(timezone.utc)
+                # 2. If the first parse fails (missing timezone data), attempt a simpler naive parse.
+                try:
+                    published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S')
+                except:
+                    # 3. Final fallback: use current UTC time (already aware)
+                    pass
+
+            # --- CRITICAL FIX: ENSURE ALL DATES ARE AWARE (UTC) ---
+            # The error means a date object made it through as "naive" (tzinfo is None).
+            if published_time.tzinfo is None or published_time.tzinfo.utcoffset(published_time) is None:
+                # If naive, localize it to UTC. This is what prevents the comparison error.
+                published_time = published_time.replace(tzinfo=timezone.utc)
             
             # Clean description for display and sentiment analysis
             cleaned_description = clean_html_description(raw_description)
@@ -136,7 +155,7 @@ def get_all_news(feed_list):
                 'publisher': publisher_name,
                 'published_utc': published_time,
                 'description': cleaned_description,
-                'sentiment': sentiment # New Feature 3: Sentiment
+                'sentiment': sentiment 
             })
 
     # Initial sort by date (Newest First) for performance
@@ -337,6 +356,6 @@ try:
 
 except Exception as e:
     # A generic, user-friendly error message is displayed in the app
-    st.error(f"A critical error occurred while fetching news. Please try again or check the ticker symbol.")
+    st.error(f"A critical error occurred while fetching news. Please try again or check the ticker symbol. Details: {e}")
     # Log the full error to the console for debugging
     print(f"ERROR: {e}")
