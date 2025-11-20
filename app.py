@@ -2,8 +2,9 @@ import streamlit as st
 import feedparser
 from datetime import datetime, timezone, timedelta 
 from concurrent.futures import ThreadPoolExecutor
-# NEW: Import the HTML module to unescape raw HTML entities in the article descriptions
 import html
+# NEW: Import the regex library for cleaning HTML from descriptions
+import re 
 
 # --- Configuration ---
 # Static feeds that are always fetched (removed the individual stock feeds as they are now dynamic)
@@ -29,6 +30,15 @@ def fetch_feed(url):
     }
     return feedparser.parse(url, request_headers=headers)
 
+# Helper function to remove HTML tags and unescape entities for clean text
+def clean_html_description(raw_description):
+    # 1. Unescape HTML entities (e.g., &amp; -> &)
+    unescaped = html.unescape(raw_description)
+    # 2. Strip all HTML tags using regex (e.g., <b>text</b> -> text)
+    clean_text = re.sub('<[^<]+?>', '', unescaped)
+    return clean_text
+
+
 # --- Streamlit App Layout ---
 
 st.set_page_config(layout="wide")
@@ -50,11 +60,16 @@ html, body, [class*="st-"] {
     margin-bottom: 0.5rem; /* Reduced margin */
 }
 
-/* FIX: Hide the conflicting sidebar toggle button to resolve "keyboard_double_arrow_right" text */
-.st-emotion-cache-n6x2g6 { /* Targeting the specific class for the button that renders the text */
-    visibility: hidden;
-    height: 0px;
+/* FIX: More aggressive hiding of the conflicting sidebar toggle button to resolve "keyboard_double_arrow_right" text */
+/* This targets the icon/button directly and hides it */
+button[title="Open sidebar"], button[title*="keyboard_double"] { 
+    display: none !important;
+    visibility: hidden !important;
 }
+
+/* Ensure the main Streamlit sidebar toggle button remains */
+/* We rely on the native Streamlit arrow on the left edge of the screen */
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -215,7 +230,7 @@ try:
             
             # 1. Start the container with the native border=True (grey/white default)
             with st.container(border=True): 
-                # 2. Add an inner markdown for the custom colored border line (THE FIX)
+                # 2. Add an inner markdown for the custom colored border line 
                 st.markdown(
                     f'<div style="height: {style["border_width"]}; background-color: {style["border_color"]}; margin: -1rem -1rem 0.5rem -1rem; border-radius: 0.4rem 0.4rem 0 0;"></div>', 
                     unsafe_allow_html=True
@@ -232,8 +247,8 @@ try:
                 
                 # 5. Use an Expander to hide the description until clicked
                 with st.expander("Click here to read summary..."):
-                    # FIX: Unescape the HTML content before displaying it
-                    clean_description = html.unescape(article['description'])
+                    # FIX: Use the new function to get clean, plain text description
+                    clean_description = clean_html_description(article['description'])
                     st.write(clean_description)
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
                 
