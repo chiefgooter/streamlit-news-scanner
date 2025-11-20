@@ -22,12 +22,7 @@ FEEDS = [
     'https://www.reuters.com/arc/outboundfeeds/tag/finance/?outputType=xml',
 ]
 
-# Function to fetch and parse a single RSS feed (includes User-Agent fix)
-def fetch_feed(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    return feedparser.parse(url, request_headers=headers)
+# --- Sentiment Analysis & Utility Functions ---
 
 # Helper function to remove HTML tags and unescape entities for clean text
 def clean_html_description(raw_description):
@@ -41,6 +36,32 @@ def clean_html_description(raw_description):
     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
     
     return clean_text
+
+# Simple, rule-based sentiment scoring to avoid external dependencies
+def get_sentiment(text):
+    text_lower = text.lower()
+    
+    positive_keywords = ['gain', 'profit', 'rise', 'boost', 'upbeat', 'soar', 'strong', 'growth', 'rally', 'win', 'success', 'record', 'outperform', 'expansion', 'bullish']
+    negative_keywords = ['loss', 'drop', 'fall', 'slump', 'plunge', 'sell-off', 'weak', 'decline', 'miss', 'dip', 'cut', 'downgrade', 'crisis', 'risk', 'bearish', 'uncertainty']
+
+    positive_count = sum(1 for keyword in positive_keywords if keyword in text_lower)
+    negative_count = sum(1 for keyword in negative_keywords if keyword in text_lower)
+    
+    if positive_count > negative_count:
+        return 'Positive'
+    elif negative_count > positive_count:
+        return 'Negative'
+    else:
+        return 'Neutral'
+
+# Returns style for displaying sentiment
+def get_sentiment_style(sentiment):
+    if sentiment == 'Positive':
+        return 'background-color: #D4EDDA; color: #155724; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8em;'
+    elif sentiment == 'Negative':
+        return 'background-color: #F8D7DA; color: #721C24; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8em;'
+    else:
+        return 'background-color: #E9ECEF; color: #495057; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8em;'
 
 
 # --- Streamlit App Layout ---
@@ -64,14 +85,12 @@ html, body, [class*="st-"] {
 }
 
 /* FIX 1: HIDES THE TOP-LEFT SIDEBAR TOGGLE TEXT (Most Aggressive Attempt) */
-/* This targets the button and the icon placeholder, forcing it hidden */
 button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [data-testid="stSidebarContent"] ~ button { 
     display: none !important;
     visibility: hidden !important;
 }
 
 /* FIX 2: HIDES THE FAILING ICON INSIDE THE ARTICLE EXPANDER */
-/* This targets the icon placeholder element inside the expander and hides it. */
 div[data-testid="stExpanderToggleIcon"] {
     display: none !important;
 }
@@ -84,7 +103,6 @@ st.header("💰 Real-Time Financial News Scanner 🚀")
 st.markdown("A consolidated feed of the latest business, tech, and market news from multiple sources.")
 
 # Cache the results for 10 minutes (600 seconds). 
-# We track the last update time in the cache function
 @st.cache_data(ttl=600) 
 def get_all_news(feed_list):
     articles = []
@@ -96,19 +114,29 @@ def get_all_news(feed_list):
     for feed in results:
         publisher_name = feed.feed.get('title', 'Unknown Source')
         for entry in feed.entries[:300]: 
+            raw_description = getattr(entry, 'summary', entry.get('content', [{}])[0].get('value', 'No description available'))
+            
             try:
                 # Attempt to parse publication date
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
             except:
                 # Fallback to current time in UTC if parsing fails
                 published_time = datetime.now(timezone.utc)
+            
+            # Clean description for display and sentiment analysis
+            cleaned_description = clean_html_description(raw_description)
+            
+            # Calculate sentiment using title and cleaned description (Feature 3)
+            combined_text = entry.title + ' ' + cleaned_description
+            sentiment = get_sentiment(combined_text)
                 
             articles.append({
                 'title': entry.title,
                 'url': entry.link,
                 'publisher': publisher_name,
                 'published_utc': published_time,
-                'description': getattr(entry, 'summary', entry.get('content', [{}])[0].get('value', 'No description available'))
+                'description': cleaned_description,
+                'sentiment': sentiment # New Feature 3: Sentiment
             })
 
     # Initial sort by date (Newest First) for performance
@@ -126,7 +154,7 @@ def get_article_style(article):
     # Border colors based on age
     if age < timedelta(minutes=15):
         # Very New (last 15 minutes) - Highlight Green
-        return {"border_color": "#28A745", "border_width": "3px"} # Increased width for visibility
+        return {"border_color": "#28A745", "border_width": "3px"} 
     elif age < timedelta(minutes=60):
         # New (last 1 hour) - Highlight Yellow
         return {"border_color": "#FFC107", "border_width": "2px"}
@@ -180,9 +208,38 @@ try:
         selected_publishers = st.multiselect(
             "Filter by Publisher:",
             options=unique_publishers,
-            default=unique_publishers, # Select all by default
+            default=unique_publishers, 
             key="publisher_filter"
         )
+        
+        # NEW Feature 3: Sentiment Filter
+        sentiment_options = ['Positive', 'Neutral', 'Negative']
+        selected_sentiment = st.multiselect(
+            "Filter by Sentiment:",
+            options=sentiment_options,
+            default=sentiment_options,
+            key="sentiment_filter",
+            help="Filter articles based on automated sentiment analysis."
+        )
+
+        # NEW Feature 1: Advanced Time Filtering
+        time_options = {
+            "All Time": timedelta(days=365 * 10),  # Effectively 'All Time'
+            "Last 24 Hours": timedelta(hours=24),
+            "Last 4 Hours": timedelta(hours=4),
+            "Last 1 Hour": timedelta(hours=1),
+            "Last 30 Minutes": timedelta(minutes=30),
+        }
+        selected_time_range_name = st.selectbox(
+            "Filter by Time Range:",
+            list(time_options.keys()),
+            index=3, # Default to Last 1 Hour
+            key="time_filter"
+        )
+        # Convert selected name to timedelta object
+        time_limit = time_options[selected_time_range_name]
+        
+        st.markdown("---")
         
         # 6. Sorting Control
         sort_option = st.selectbox(
@@ -200,26 +257,41 @@ try:
             help="Type a keyword to filter the articles that are already loaded in the list above."
         )
 
-    # --- INITIAL FILTERING LOGIC (Publisher Filter) ---
-    # Apply publisher filter first
-    publisher_filtered_articles = [
+    # --- FILTERING LOGIC ---
+    now_utc = datetime.now(timezone.utc)
+    
+    # 1. Time Filter (Feature 1)
+    time_filtered_articles = [
         article for article in all_articles
+        if (now_utc - article['published_utc']) <= time_limit
+    ]
+    
+    # 2. Publisher Filter
+    publisher_filtered_articles = [
+        article for article in time_filtered_articles
         if article['publisher'] in selected_publishers
     ]
 
-    # --- SECONDARY FILTERING LOGIC (Keyword Filter) ---
+    # 3. Sentiment Filter (Feature 3)
+    sentiment_filtered_articles = [
+        article for article in publisher_filtered_articles
+        if article['sentiment'] in selected_sentiment
+    ]
+
+    # 4. Keyword Filter (Feature 2 - Now searches description)
     if search_term:
         search_term_lower = search_term.lower()
         
         filtered_articles = [
-            article for article in publisher_filtered_articles 
+            article for article in sentiment_filtered_articles
             if search_term_lower in article['title'].lower() or \
-               search_term_lower in article['publisher'].lower()
+               search_term_lower in article['publisher'].lower() or \
+               search_term_lower in article['description'].lower() # NEW: Search Description
         ]
         # Display results count in the main area
         st.info(f"Showing **{len(filtered_articles)}** results for: **{search_term}**")
     else:
-        filtered_articles = publisher_filtered_articles
+        filtered_articles = sentiment_filtered_articles
         
     # --- SORTING LOGIC (Applied after filtering) ---
     if sort_option == "Newest First":
@@ -233,30 +305,32 @@ try:
     else:
         for article in filtered_articles[:1000]: 
             style = get_article_style(article)
+            sentiment_style = get_sentiment_style(article['sentiment'])
             
-            # 1. Start the container with the native border=True (grey/white default)
             with st.container(border=True): 
-                # 2. Add an inner markdown for the custom colored border line 
+                # 1. Colored Border
                 st.markdown(
                     f'<div style="height: {style["border_width"]}; background-color: {style["border_color"]}; margin: -1rem -1rem 0.5rem -1rem; border-radius: 0.4rem 0.4rem 0 0;"></div>', 
                     unsafe_allow_html=True
                 )
                 
-                # 3. Headline as a large, clickable link
-                st.markdown(f"**[{article['title']}]({article['url']})**") # Bolded the headline
+                # 2. Headline as a large, clickable link + Sentiment Tag
+                # Display sentiment tag right next to the headline
+                st.markdown(
+                    f"<span style='{sentiment_style}'>{article['sentiment']}</span> "
+                    f"**[{article['title']}]({article['url']})**", 
+                    unsafe_allow_html=True
+                ) 
                 
-                # 4. Source and Date on a single line with enhanced styling
+                # 3. Source and Date on a single line with enhanced styling
                 st.caption(
                     f"**<span style='color: #1E90FF;'>{article['publisher']}</span>** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*",
                     unsafe_allow_html=True
                 )
                 
-                # 5. Use an Expander to hide the description until clicked
-                # FIX: Added a custom emoji (🔍) to the title to replace the failing Streamlit icon
+                # 4. Expander to hide the description
                 with st.expander("🔍 Click here to read summary..."): 
-                    # FIX: Changed st.write to st.markdown for potentially cleaner text rendering
-                    clean_description = clean_html_description(article['description'])
-                    st.markdown(clean_description) 
+                    st.markdown(article['description']) 
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
                 
         st.divider()
