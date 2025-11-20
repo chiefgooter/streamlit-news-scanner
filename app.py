@@ -98,8 +98,18 @@ button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [dat
 }
 
 /* FIX 2: HIDES THE FAILING ICON INSIDE THE ARTICLE EXPANDER */
-div[data-testid="stExpanderToggleIcon"] {
+/* Target the div that contains the expander icon and hide its content/itself */
+/* Added a more specific class for Streamlit's expander icon */
+.st-emotion-cache-s1h5b3.e1m3uiq2, /* The arrow icon itself */
+[data-testid="stExpanderToggleIcon"] span { /* The span that might hold the text */
     display: none !important;
+    visibility: hidden !important;
+}
+
+/* Make the expander text slightly larger and more clickable */
+.st-emotion-cache-p2w2yq { /* This is the general class for expander title */
+    font-size: 1.1em; 
+    font-weight: bold;
 }
 
 </style>
@@ -128,11 +138,11 @@ def get_all_news(feed_list):
             try:
                 # 1. Attempt the standard robust parse with timezone (%z)
                 published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
-            except:
+            except ValueError:
                 # 2. If the first parse fails (missing timezone data), attempt a simpler naive parse.
                 try:
                     published_time = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S')
-                except:
+                except ValueError:
                     # 3. Final fallback: use current UTC time (already aware)
                     pass
 
@@ -348,6 +358,7 @@ try:
                 )
                 
                 # 4. Expander to hide the description
+                # The text is now bold, slightly larger, and only shows the emoji and custom text.
                 with st.expander("🔍 Click here to read summary..."): 
                     st.markdown(article['description']) 
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
