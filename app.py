@@ -169,14 +169,18 @@ try:
         filtered_articles.sort(key=lambda x: x['publisher'])
     
     # --- DISPLAY FILTERED ARTICLES ---
-    for article in filtered_articles[:1000]: 
+    for i, article in enumerate(filtered_articles[:1000]): 
         style = get_article_style(article)
+        
+        # We need a unique, sanitized ID for the CSS injection
+        # Using the index 'i' in the filtered list is the most reliable method
+        container_id = f"article-container-{i}"
         
         # Apply custom styling via st.markdown for the container border
         st.markdown(
             f"""
             <style>
-            .article-container-{article['title'].replace(' ', '')[:10]} {{
+            .st-emotion-cache-1kyxoe7 .st-emotion-cache-10o4d3q:nth-child({i+1}) {{
                 border: {style['border_width']} solid {style['border_color']} !important;
                 border-radius: 0.5rem;
                 padding: 1rem;
@@ -187,28 +191,35 @@ try:
             unsafe_allow_html=True
         )
 
-        # The container uses the custom CSS class we just defined
-        with st.container():
-            st.markdown(
-                f"<div class='article-container-{article['title'].replace(' ', '')[:10]}'>",
-                unsafe_allow_html=True
-            )
-            # 1. Headline as a large, clickable link
+        # The container uses Streamlit's native st.container(border=True) 
+        # for proper wrapping, but we must use a slightly hacky CSS selection
+        # to apply the custom border color, which is difficult.
+        #
+        # INSTEAD OF TRYING TO HACK STREAMLIT'S INTERNAL CSS, 
+        # WE WILL SIMPLY USE st.container(border=True) and apply a colored
+        # title or background, which is much more stable.
+        
+        # Reverting to the simpler, more stable styling:
+
+        # 1. Start the container with the native border=True (grey/white default)
+        with st.container(border=True): 
+            # 2. Add an inner markdown for the custom colored border line (THE FIX)
+            st.markdown(f'<div style="height: {style["border_width"]}; background-color: {style["border_color"]}; margin: -1rem -1rem 0.5rem -1rem; border-radius: 0.4rem 0.4rem 0 0;"></div>', unsafe_allow_html=True)
+            
+            # 3. Headline as a large, clickable link
             st.markdown(f"### [{article['title']}]({article['url']})") 
             
-            # 2. Source and Date on a single line with enhanced styling
+            # 4. Source and Date on a single line with enhanced styling
             st.caption(
                 f"**<span style='color: #1E90FF;'>{article['publisher']}</span>** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*",
                 unsafe_allow_html=True
             )
             
-            # 3. Use an Expander to hide the description until clicked
+            # 5. Use an Expander to hide the description until clicked
             with st.expander("Click here to read summary..."):
                 st.write(article['description'])
                 st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
             
-            st.markdown("</div>", unsafe_allow_html=True) # Close the custom container div
-
     st.divider()
 
 except Exception as e:
