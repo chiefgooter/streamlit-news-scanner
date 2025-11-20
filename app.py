@@ -3,7 +3,6 @@ import feedparser
 from datetime import datetime, timezone, timedelta 
 from concurrent.futures import ThreadPoolExecutor
 import html
-# NEW: Import the regex library for cleaning HTML from descriptions
 import re 
 
 # --- Configuration ---
@@ -32,10 +31,15 @@ def fetch_feed(url):
 
 # Helper function to remove HTML tags and unescape entities for clean text
 def clean_html_description(raw_description):
-    # 1. Unescape HTML entities (e.g., &amp; -> &)
+    # 1. Unescape HTML entities first (e.g., &amp; -> &)
     unescaped = html.unescape(raw_description)
-    # 2. Strip all HTML tags using regex (e.g., <b>text</b> -> text)
-    clean_text = re.sub('<[^<]+?>', '', unescaped)
+    
+    # 2. Strip all remaining HTML tags using a more reliable regex
+    clean_text = re.sub('<.*?>', '', unescaped)
+    
+    # 3. Remove excess whitespace and newlines for clean display
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+    
     return clean_text
 
 
@@ -60,8 +64,13 @@ html, body, [class*="st-"] {
     margin-bottom: 0.5rem; /* Reduced margin */
 }
 
-/* FIX: More aggressive hiding of the conflicting sidebar toggle button to resolve "keyboard_double_arrow_right" text */
-/* This targets the icon/button directly and hides it */
+/* FIX: Targeted CSS to remove the "keyboard_double_arrow_right" text artifact */
+/* This targets the span tag (or similar) that holds the text and forces the text content out */
+span:has-text("keyboard_double_arrow_right") {
+    display: none !important;
+}
+
+/* Fallback/Aggressive FIX: Hides the entire button if the above fails */
 button[title="Open sidebar"], button[title*="keyboard_double"] { 
     display: none !important;
     visibility: hidden !important;
@@ -247,7 +256,7 @@ try:
                 
                 # 5. Use an Expander to hide the description until clicked
                 with st.expander("Click here to read summary..."):
-                    # FIX: Use the new function to get clean, plain text description
+                    # FIX: Use the refined function to get absolutely clean, plain text description
                     clean_description = clean_html_description(article['description'])
                     st.write(clean_description)
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
