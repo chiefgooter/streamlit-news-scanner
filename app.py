@@ -91,11 +91,14 @@ html, body, [class*="st-"] {
     margin-bottom: 0.5rem; /* Reduced margin */
 }
 
-/* FIX 1: HIDES THE TOP-LEFT SIDEBAR TOGGLE TEXT */
-button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [data-testid="stSidebarContent"] ~ button { 
+/* FIX 1: RESTORES THE SIDEBAR TOGGLE ICON */
+/* This specific selector was hiding the icon itself. We only want to hide the expander text now. */
+/* Removing this block ensures the sidebar button renders correctly as an icon. */
+/* button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [data-testid="stSidebarContent"] ~ button { 
     display: none !important;
     visibility: hidden !important;
-}
+} */
+
 
 /* --- CRITICAL FIX 2: HIDES THE FAILING ICON/TEXT INSIDE THE ARTICLE EXPANDER --- */
 
