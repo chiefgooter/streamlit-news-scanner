@@ -30,7 +30,8 @@ def fetch_feed(url):
 # --- Streamlit App Layout ---
 
 st.set_page_config(layout="wide")
-st.title("💰 Real-Time Financial News Scanner 🚀") 
+st.header("💰 Real-Time Financial News Scanner 🚀") # Changed to st.header for better hierarchy
+st.markdown("A consolidated feed of the latest business, tech, and market news from multiple sources.")
 
 # Cache the results for 10 minutes (600 seconds). 
 # The cache key now depends on the 'feed_list' argument.
@@ -68,6 +69,11 @@ try:
     with st.sidebar:
         st.title("⚙️ Scanner Controls")
         
+        # NEW: Manual Refresh Button (First in sidebar for quick access)
+        if st.button("Manual Data Refresh 🔄", help="Clear cache and fetch all news feeds now."):
+             st.cache_data.clear()
+             st.rerun()
+
         st.markdown("---")
         # 1. Stock Ticker Search (This input drives the fetching logic)
         ticker_search = st.text_input(
@@ -97,7 +103,7 @@ try:
 
         st.markdown("---")
         
-        # 5. NEW: Sorting Control
+        # 5. Sorting Control
         sort_option = st.selectbox(
             "Sort Articles By:",
             ("Newest First", "Publisher Name (A-Z)"),
@@ -126,11 +132,9 @@ try:
         st.info(f"Showing **{len(filtered_articles)}** results for: **{search_term}**")
     else:
         filtered_articles = all_articles
-        st.write("Displaying all latest articles.")
-
+        
     # --- SORTING LOGIC (Applied after filtering) ---
     if sort_option == "Newest First":
-        # Already sorted by published_utc (from get_all_news), but we re-sort to be safe.
         filtered_articles.sort(key=lambda x: x['published_utc'], reverse=True)
     elif sort_option == "Publisher Name (A-Z)":
         filtered_articles.sort(key=lambda x: x['publisher'])
@@ -141,9 +145,11 @@ try:
             # 1. Headline as a large, clickable link
             st.markdown(f"### [{article['title']}]({article['url']})") 
             
-            # 2. Source and Date on a single line with a divider
+            # 2. Source and Date on a single line with enhanced styling
+            # Styled the publisher with bold blue text for better visual appeal
             st.caption(
-                f"**{article['publisher']}** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*"
+                f"**<span style='color: #1E90FF;'>{article['publisher']}</span>** | *{article['published_utc'].strftime('%Y-%m-%d %H:%M:%S %Z')}*",
+                unsafe_allow_html=True
             )
             
             # 3. Use an Expander to hide the description until clicked
@@ -155,6 +161,6 @@ try:
 
 except Exception as e:
     # A generic, user-friendly error message is displayed in the app
-    st.error(f"A critical error occurred while fetching news. Please check the logs for details.")
+    st.error(f"A critical error occurred while fetching news. Please try again or check the ticker symbol.")
     # Log the full error to the console for debugging
     print(f"ERROR: {e}")
