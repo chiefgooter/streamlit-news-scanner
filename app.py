@@ -13,6 +13,10 @@ FEEDS = [
     'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml',
     'https://feeds.feedburner.com/venturebeat/feed',
     'https://www.forbes.com/business/feed/',
+    'https://feeds.marketwatch.com/marketwatch/public/rss/mw_latestnews',
+    'https://www.cnbc.com/id/10000664/device/rss/rss.html',
+    'http://feeds.bbci.co.uk/news/business/rss.xml',
+    'https://www.reuters.com/arc/outboundfeeds/tag/finance/?outputType=xml',
 ]
 
 # Function to fetch and parse a single RSS feed (includes User-Agent fix)
