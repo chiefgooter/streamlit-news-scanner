@@ -2,6 +2,8 @@ import streamlit as st
 import feedparser
 from datetime import datetime, timezone, timedelta 
 from concurrent.futures import ThreadPoolExecutor
+# NEW: Import the HTML module to unescape raw HTML entities in the article descriptions
+import html
 
 # --- Configuration ---
 # Static feeds that are always fetched (removed the individual stock feeds as they are now dynamic)
@@ -31,7 +33,7 @@ def fetch_feed(url):
 
 st.set_page_config(layout="wide")
 
-# NEW: Custom CSS for better typography and spacing
+# NEW: Custom CSS adjustments 
 st.markdown("""
 <style>
 /* Use a cleaner, system-default font for a modern look */
@@ -39,12 +41,19 @@ html, body, [class*="st-"] {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 /* Reduce vertical space above the main title */
+/* Note: This class name might change slightly between Streamlit versions */
 .css-1g5lmd {
     margin-top: -30px; 
 }
 /* Tighter spacing for the article list (Streamlit containers) */
 .st-emotion-cache-1kyxoe7 > div > div {
     margin-bottom: 0.5rem; /* Reduced margin */
+}
+
+/* FIX: Hide the conflicting sidebar toggle button to resolve "keyboard_double_arrow_right" text */
+.st-emotion-cache-n6x2g6 { /* Targeting the specific class for the button that renders the text */
+    visibility: hidden;
+    height: 0px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -223,7 +232,9 @@ try:
                 
                 # 5. Use an Expander to hide the description until clicked
                 with st.expander("Click here to read summary..."):
-                    st.write(article['description'])
+                    # FIX: Unescape the HTML content before displaying it
+                    clean_description = html.unescape(article['description'])
+                    st.write(clean_description)
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
                 
         st.divider()
