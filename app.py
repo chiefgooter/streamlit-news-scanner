@@ -60,6 +60,7 @@ def get_all_news(feed_list):
                 'description': getattr(entry, 'summary', entry.get('content', [{}])[0].get('value', 'No description available'))
             })
 
+    # Initial sort by date (Newest First) for performance
     return sorted(articles, key=lambda x: x['published_utc'], reverse=True)
 
 try:
@@ -68,7 +69,7 @@ try:
         st.title("⚙️ Scanner Controls")
         
         st.markdown("---")
-        # 1. NEW: Stock Ticker Search (This input drives the fetching logic)
+        # 1. Stock Ticker Search (This input drives the fetching logic)
         ticker_search = st.text_input(
             "Search by Stock Ticker (e.g., AAPL)",
             placeholder="Enter Ticker Symbol",
@@ -96,7 +97,16 @@ try:
 
         st.markdown("---")
         
-        # 5. General Filter Widget (This filters the articles that were already loaded)
+        # 5. NEW: Sorting Control
+        sort_option = st.selectbox(
+            "Sort Articles By:",
+            ("Newest First", "Publisher Name (A-Z)"),
+            key="sort_select"
+        )
+
+        st.markdown("---")
+        
+        # 6. General Filter Widget (This filters the articles that were already loaded)
         search_term = st.text_input(
             "Filter Loaded Articles:",
             placeholder="Filter by keyword (e.g., AI, Earnings)",
@@ -117,6 +127,13 @@ try:
     else:
         filtered_articles = all_articles
         st.write("Displaying all latest articles.")
+
+    # --- SORTING LOGIC (Applied after filtering) ---
+    if sort_option == "Newest First":
+        # Already sorted by published_utc (from get_all_news), but we re-sort to be safe.
+        filtered_articles.sort(key=lambda x: x['published_utc'], reverse=True)
+    elif sort_option == "Publisher Name (A-Z)":
+        filtered_articles.sort(key=lambda x: x['publisher'])
     
     # --- DISPLAY FILTERED ARTICLES ---
     for article in filtered_articles[:1000]: 
