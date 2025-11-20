@@ -55,7 +55,6 @@ html, body, [class*="st-"] {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 /* Reduce vertical space above the main title */
-/* Note: This class name might change slightly between Streamlit versions */
 .css-1g5lmd {
     margin-top: -30px; 
 }
@@ -64,20 +63,18 @@ html, body, [class*="st-"] {
     margin-bottom: 0.5rem; /* Reduced margin */
 }
 
-/* FIX: Targeted CSS to remove the "keyboard_double_arrow_right" text artifact */
-/* This targets the span tag (or similar) that holds the text and forces the text content out */
-span:has-text("keyboard_double_arrow_right") {
-    display: none !important;
-}
-
-/* Fallback/Aggressive FIX: Hides the entire button if the above fails */
-button[title="Open sidebar"], button[title*="keyboard_double"] { 
+/* FIX 1: HIDES THE TOP-LEFT SIDEBAR TOGGLE TEXT (Most Aggressive Attempt) */
+/* This targets the button and the icon placeholder, forcing it hidden */
+button[title="Open sidebar"], button[title*="keyboard_double_arrow_right"], [data-testid="stSidebarContent"] ~ button { 
     display: none !important;
     visibility: hidden !important;
 }
 
-/* Ensure the main Streamlit sidebar toggle button remains */
-/* We rely on the native Streamlit arrow on the left edge of the screen */
+/* FIX 2: HIDES THE FAILING ICON INSIDE THE ARTICLE EXPANDER */
+/* This targets the icon placeholder element inside the expander and hides it. */
+div[data-testid="stExpanderToggleIcon"] {
+    display: none !important;
+}
 
 </style>
 """, unsafe_allow_html=True)
@@ -255,10 +252,11 @@ try:
                 )
                 
                 # 5. Use an Expander to hide the description until clicked
-                with st.expander("Click here to read summary..."):
-                    # FIX: Use the refined function to get absolutely clean, plain text description
+                # FIX: Added a custom emoji (🔍) to the title to replace the failing Streamlit icon
+                with st.expander("🔍 Click here to read summary..."): 
+                    # FIX: Changed st.write to st.markdown for potentially cleaner text rendering
                     clean_description = clean_html_description(article['description'])
-                    st.write(clean_description)
+                    st.markdown(clean_description) 
                     st.markdown(f"**[Read Full Article at {article['publisher']}]({article['url']})**")
                 
         st.divider()
